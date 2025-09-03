@@ -75,7 +75,7 @@ version of scylla should match the one used by the charybdis crate.
 
 ```toml
 [dependencies]
-scylla = "1.2.0"
+scylla = "1.3"
 charybdis = "1.0.2"
 ```
 
@@ -84,7 +84,7 @@ charybdis = "1.0.2"
 ```rust,ignore
   use charybdis::macros::charybdis_model;
   use charybdis::types::{Text, Timestamp, Uuid};
-  
+
   #[charybdis_model(
       table_name = users,
       partition_keys = [id],
@@ -108,7 +108,7 @@ charybdis = "1.0.2"
  ```rust,ignore
   use charybdis::macros::charybdis_udt_model;
   use charybdis::types::Text;
-  
+
   #[charybdis_udt_model(type_name = address)]
   pub struct Address {
       pub street: Text,
@@ -130,7 +130,7 @@ match struct name. So if we have `struct ReorderData` we have to use
   ```rust,ignore
   use charybdis::macros::charybdis_view_model;
   use charybdis::types::{Text, Timestamp, Uuid};
-  
+
   #[charybdis_view_model(
       table_name=users_by_username,
       base_table=users,
@@ -144,7 +144,7 @@ match struct name. So if we have `struct ReorderData` we have to use
       pub created_at: Timestamp,
       pub updated_at: Timestamp,
   }
-  
+
   ```
 
 Resulting auto-generated migration query will be:
@@ -182,7 +182,7 @@ Resulting auto-generated migration query will be:
             global_secondary_indexes = [],
             local_secondary_indexes = [],
             table_options = r#"
-                CLUSTERING ORDER BY (created_at DESC) 
+                CLUSTERING ORDER BY (created_at DESC)
                 AND gc_grace_seconds = 86400
             "#
         )]
@@ -197,7 +197,7 @@ Resulting auto-generated migration query will be:
 * ### Running migration
     ```bash
     cargo install charybdis-migrate
-    
+
     migrate --hosts <host> --keyspace <your_keyspace> --drop-and-replace (optional)
     ```
     * ⚠️ Always run migrations from desired directories ('src' or 'test'), to avoid scanning
@@ -218,7 +218,7 @@ Resulting auto-generated migration query will be:
   Within testing or development environment, we can trigger migrations programmatically:
     ```rust,ignore
     use charybdis::migrate::MigrationBuilder;
-    
+
     let migration = MigrationBuilder::new()
         .keyspace("test")
         .drop_and_replace(true)
@@ -262,11 +262,11 @@ in `charybdis::operations` module.
 
 - ```rust,ignore
   use charybdis::{CachingSession, Insert};
-  
+
   #[tokio::main]
   async fn main() {
     let session: &CachingSession; // init sylla session
-    
+
     // init user
     let user: User = User {
       id,
@@ -284,7 +284,7 @@ in `charybdis::operations` module.
           }
       ),
     };
-  
+
     // create
     user.insert().execute(&session).await;
   }
@@ -313,7 +313,7 @@ in `charybdis::operations` module.
   use charybdis::macros::charybdis_model;
   use charybdis::stream::CharybdisModelStream;
   use charybdis::types::{Date, Text, Uuid};
-  
+
   #[charybdis_model(
       table_name = posts,
       partition_keys = [date],
@@ -326,34 +326,34 @@ in `charybdis::operations` module.
       pub category_id: Uuid,
       pub title: Text,
   }
-  
+
   impl Post {
       async fn find_various(db_session: &CachingSession) -> Result<(), CharybdisError> {
          let date = Date::default();
          let category_id = Uuid::new_v4();
          let title = Text::default();
-      
+
          let posts: CharybdisModelStream<Post> = Post::find_by_date(date).execute(db_session).await?;
          let posts: CharybdisModelStream<Post> = Post::find_by_date_and_category_id(date, category_id).execute(db_session).await?;
          let posts: Post = Post::find_by_date_and_category_id_and_title(date, category_id, title.clone()).execute(db_session).await?;
-      
+
          let post: Post = Post::find_first_by_date(date).execute(db_session).await?;
          let post: Post = Post::find_first_by_date_and_category_id(date, category_id).execute(db_session).await?;
-      
+
          let post: Option<Post> = Post::maybe_find_first_by_date(date).execute(db_session).await?;
          let post: Option<Post> = Post::maybe_find_first_by_date_and_category_id(date, category_id).execute(db_session).await?;
          let post: Option<Post> = Post::maybe_find_first_by_date_and_category_id_and_title(date, category_id, title.clone()).execute(db_session).await?;
-      
+
          // find by local secondary index
          let posts: CharybdisModelStream<Post> = Post::find_by_date_and_title(date, title.clone()).execute(db_session).await?;
          let post: Post = Post::find_first_by_date_and_title(date, title.clone()).execute(db_session).await?;
          let post: Option<Post> = Post::maybe_find_first_by_date_and_title(date, title.clone()).execute(db_session).await?;
-  
+
         // find by global secondary index
         let posts: CharybdisModelStream<Post> = Post::find_by_category_id(category_id).execute(db_session).await?;
         let post: Post = Post::find_first_by_category_id(category_id).execute(db_session).await?;
         let post: Option<Post> = Post::maybe_find_first_by_category_id(category_id).execute(db_session).await?;
-      
+
         Ok(())
       }
   }
@@ -361,10 +361,10 @@ in `charybdis::operations` module.
 
 - ### Custom filtering:
   Lets use our `Post` model as an example:
-    ```rust,ignore 
+    ```rust,ignore
     #[charybdis_model(
-        table_name = posts, 
-        partition_keys = [category_id], 
+        table_name = posts,
+        partition_keys = [category_id],
         clustering_keys = [date, title],
         global_secondary_indexes = []
     )]
@@ -399,10 +399,10 @@ in `charybdis::operations` module.
 
 - ```rust,ignore
   let user = User::from_json(json);
-  
+
   user.username = "scylla".to_string();
   user.email = "some@email.com";
-  
+
   user.update().execute(&session).await;
   ```
 - ### Collection:
@@ -423,10 +423,10 @@ in `charybdis::operations` module.
       field.
        ```rust,ignore
        let user: User;
-   
+
        user.push_tags(vec![tag]).execute(&session).await;
        user.pull_tags(vec![tag]).execute(&session).await;
-   
+
        user.push_post_ids(vec![tag]).execute(&session).await;
        user.pull_post_ids(vec![tag]).execute(&session).await;
        ```
@@ -450,14 +450,14 @@ in `charybdis::operations` module.
       let post_counter: PostCounter;
       post_counter.increment_likes(1).execute(&session).await;
       post_counter.decrement_likes(1).execute(&session).await;
-      
+
       post_counter.increment_comments(1).execute(&session).await;
       post_counter.decrement_comments(1).execute(&session).await;
       ```
 
 ## Delete
 
-- ```rust,ignore 
+- ```rust,ignore
   let user = User::from_json(json);
 
   user.delete().execute(&session).await;
@@ -505,7 +505,7 @@ let user: User = User::find_by_id(id)
     .timeout(Some(Duration::from_secs(5)))
     .execute(&app.session)
     .await?;
-    
+
 let result: QueryResult = user.update().consistency(Consistency::One).execute(&session).await?;
 ```
 
@@ -527,16 +527,16 @@ Supported configuration options:
   ```rust,ignore
   let users: Vec<User>;
   let batch = User::batch();
-  
+
   // inserts
   batch.append_inserts(users);
-  
+
   // or updates
   batch.append_updates(users);
-  
+
   // or deletes
   batch.append_deletes(users);
-  
+
   batch.execute(&session).await?;
   ```
 
@@ -547,7 +547,7 @@ Supported configuration options:
   ```rust,ignore
     let users: Vec<User>;
     let chunk_size = 100;
-  
+
     User::batch().chunked_inserts(&session, users, chunk_size).await?;
     User::batch().chunked_updates(&session, users, chunk_size).await?;
     User::batch().chunked_deletes(&session, users, chunk_size).await?;
@@ -578,11 +578,11 @@ Supported configuration options:
     ```rust,ignore
     let batch = User::batch();
     let users: Vec<User>;
-    
+
     for user in users {
         batch.append_statement(User::PUSH_TAGS_QUERY, (vec![tag], user.id));
     }
-    
+
     batch.execute(&session).await;
     ```
 
@@ -643,7 +643,7 @@ Partial models inherit:
 
 In case we need to run operations on native model, we can use `as_native` method:
 
-  ```rust,ignore 
+  ```rust,ignore
   let native_user: User = update_user_username.as_native().find_by_primary_key().execute(&session).await?;
   // action that requires native model
   authorize_user(&native_user);
@@ -679,11 +679,11 @@ E.g.
     ```rust,ignore
     #[charybdis_model(...)]
     pub struct Post {}
-    
+
     impl Callback for Post {
         type Extention = AppExtensions;
         type Error = AppError; // From<CharybdisError>
-        
+
        // use before_insert to set default values
         async fn before_insert(
             &mut self,
@@ -692,10 +692,10 @@ E.g.
         ) -> Result<(), CustomError> {
             self.id = Uuid::new_v4();
             self.created_at = Utc::now();
-            
+
             Ok(())
         }
-        
+
         // use before_update to set updated_at
         async fn before_update(
             &mut self,
@@ -703,10 +703,10 @@ E.g.
             extension: &AppExtensions,
         ) -> Result<(), CustomError> {
             self.updated_at = Utc::now();
-            
+
             Ok(())
         }
-    
+
         // use after_update to update elastic document
         async fn after_update(
             &mut self,
@@ -714,10 +714,10 @@ E.g.
             extension: &AppExtensions,
         ) -> Result<(), CustomError> {
             extension.elastic_client.update(...).await?;
-    
+
             Ok(())
         }
-        
+
         // use after_delete to delete elastic document
         async fn after_delete(
             &mut self,
@@ -725,7 +725,7 @@ E.g.
             extension: &AppExtensions,
         ) -> Result<(), CustomError> {
             extension.elastic_client.delete(...).await?;
-    
+
             Ok(())
         }
     }
@@ -746,7 +746,7 @@ E.g.
   Just as on main operation, we can configure callback operation query before execution.
   ```rust,ignore
    use charybdis::operations::{DeleteWithCallbacks, InsertWithCallbacks, UpdateWithCallbacks};
-  
+
    post.insert_cb(app_extensions).execute(&session).await;
    post.update_cb(app_extensions).execute(&session).await;
    post.delete_cb(app_extensions).consistency(Consistency::All).execute(&session).await;
@@ -787,19 +787,19 @@ For each collection field, we get following:
     impl User {
         const PUSH_TAGS_QUERY: &'static str = "UPDATE users SET tags = tags + ? WHERE id = ?";
         const PUSH_TAGS_IF_EXISTS_QUERY: &'static str = "UPDATE users SET tags = tags + ? WHERE id = ? IF EXISTS";
-   
+
         const PULL_TAGS_QUERY: &'static str = "UPDATE users SET tags = tags - ? WHERE id = ?";
         const PULL_TAGS_IF_EXISTS_QUERY: &'static str = "UPDATE users SET tags = tags - ? WHERE id = ? IF EXISTS";
-         
+
         const PUSH_POST_IDS_QUERY: &'static str = "UPDATE users SET post_ids = post_ids + ? WHERE id = ?";
         const PUSH_POST_IDS_IF_EXISTS_QUERY: &'static str = "UPDATE users SET post_ids = post_ids + ? WHERE id = ? IF EXISTS";
-   
+
         const PULL_POST_IDS_QUERY: &'static str = "UPDATE users SET post_ids = post_ids - ? WHERE id = ?";
         const PULL_POST_IDS_IF_EXISTS_QUERY: &'static str = "UPDATE users SET post_ids = post_ids - ? WHERE id = ? IF EXISTS";
 
         const PUSH_BOOKS_BY_GENRE_QUERY: &'static str = "UPDATE users SET books_by_genre = books_by_genre + ? WHERE id = ?";
         const PUSH_BOOKS_BY_GENRE_IF_EXISTS_QUERY: &'static str = "UPDATE users SET books_by_genre = books_by_genre + ? WHERE id = ? IF EXISTS";
-        
+
         const PULL_BOOKS_BY_GENRE_QUERY: &'static str = "UPDATE users SET books_by_genre = books_by_genre - ? WHERE id = ?";
         const PULL_BOOKS_BY_GENRE_IF_EXISTS_QUERY: &'static str = "UPDATE users SET books_by_genre = books_by_genre - ? WHERE id = ? IF EXISTS";
     }
@@ -810,11 +810,11 @@ For each collection field, we get following:
     ```rust,ignore
     let batch = User::batch();
     let users: Vec<User>;
-    
+
     for user in users {
         batch.append_statement(User::PUSH_TAGS_QUERY, (vec![tag], user.id));
     }
-    
+
     batch.execute(&session).await;
     ```
 
@@ -824,23 +824,23 @@ For each collection field, we get following:
 
     ```rust,ignore
     let user: User::new();
-    
+
     user.push_tags(tags: HashSet<T>).execute(&session).await;
     user.push_tags_if_exists(tags: HashSet<T>).execute(&session).await;
-    
+
     user.pull_tags(tags: HashSet<T>).execute(&session).await;
     user.pull_tags_if_exists(tags: HashSet<T>).execute(&session).await;
-    
-    
+
+
     user.push_post_ids(ids: Vec<T>).execute(&session).await;
     user.push_post_ids_if_exists(ids: Vec<T>).execute(&session).await;
-    
+
     user.pull_post_ids(ids: Vec<T>).execute(&session).await;
     user.pull_post_ids_if_exists(ids: Vec<T>).execute(&session).await;
-    
+
     user.push_books_by_genre(map: HashMap<K, V>).execute(&session).await;
     user.push_books_by_genre_if_exists(map: HashMap<K, V>).execute(&session).await;
-    
+
     user.pull_books_by_genre(map: HashMap<K, V>).execute(&session).await;
     user.pull_books_by_genre_if_exists(map: HashMap<K, V>).execute(&session).await;
     ```
