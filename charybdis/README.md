@@ -76,7 +76,7 @@ version of scylla should match the one used by the charybdis crate.
 ```toml
 [dependencies]
 scylla = "1.3"
-charybdis = "1.0.2"
+charybdis = "1.0.3"
 ```
 
 ### Define Tables
