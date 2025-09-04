@@ -3,7 +3,7 @@ use crate::model::Model;
 use crate::query::{CharybdisCbQuery, CharybdisQuery, ModelMutation, QueryValue};
 
 pub trait Update: Model {
-    fn update(&self) -> CharybdisQuery<Self, Self, ModelMutation> {
+    fn update(&self) -> CharybdisQuery<'_, Self, Self, ModelMutation> {
         CharybdisQuery::new(Self::UPDATE_QUERY, QueryValue::Model(self))
     }
 }

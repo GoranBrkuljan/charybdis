@@ -12,11 +12,11 @@ pub trait Delete: Model {
         CharybdisQuery::new(query, QueryValue::Owned(values))
     }
 
-    fn delete(&self) -> CharybdisQuery<Self::PrimaryKey, Self, ModelMutation> {
+    fn delete(&self) -> CharybdisQuery<'_, Self::PrimaryKey, Self, ModelMutation> {
         CharybdisQuery::new(Self::DELETE_QUERY, QueryValue::Owned(self.primary_key_values()))
     }
 
-    fn delete_by_partition_key(&self) -> CharybdisQuery<Self::PartitionKey, Self, ModelMutation> {
+    fn delete_by_partition_key(&self) -> CharybdisQuery<'_, Self::PartitionKey, Self, ModelMutation> {
         CharybdisQuery::new(
             Self::DELETE_BY_PARTITION_KEY_QUERY,
             QueryValue::Owned(self.partition_key_values()),

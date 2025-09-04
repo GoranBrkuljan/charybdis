@@ -191,20 +191,6 @@ pub struct CharybdisFields<'a> {
     pub local_secondary_index_fields: Vec<&'a Field<'a>>,
 }
 
-impl CharybdisFields<'_> {
-    pub fn non_primary_key_db_fields(&self) -> Vec<&Field> {
-        self.db_fields
-            .iter()
-            .filter(|field| !field.is_primary_key())
-            .cloned()
-            .collect()
-    }
-
-    pub fn non_db_fields(&self) -> Vec<&Field> {
-        self.all_fields.iter().filter(|field| field.ignore).collect()
-    }
-}
-
 impl<'a> CharybdisFields<'a> {
     fn new(named_fields: &'a FieldsNamed, args: &CharybdisMacroArgs) -> Self {
         let mut me = Self::default();
@@ -344,7 +330,19 @@ impl<'a> CharybdisFields<'a> {
         self
     }
 
-    pub(crate) fn db_fields(named_fields: &FieldsNamed) -> Vec<Field> {
+    pub fn non_primary_key_db_fields(&self) -> Vec<&Field<'a>> {
+        self.db_fields
+            .iter()
+            .filter(|field| !field.is_primary_key())
+            .cloned()
+            .collect()
+    }
+
+    pub fn non_db_fields(&'a self) -> Vec<&'a Field<'a>> {
+        self.all_fields.iter().filter(|field| field.ignore).collect()
+    }
+
+    pub(crate) fn db_fields(named_fields: &'a FieldsNamed) -> Vec<Field<'a>> {
         let mut db_fields = vec![];
 
         for field in &named_fields.named {

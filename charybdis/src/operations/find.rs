@@ -63,21 +63,21 @@ where
         CharybdisQuery::new(Self::FIND_BY_PARTITION_KEY_QUERY, QueryValue::Owned(value))
     }
 
-    fn find_by_primary_key(&self) -> CharybdisQuery<Self::PrimaryKey, Self, ModelRow> {
+    fn find_by_primary_key(&self) -> CharybdisQuery<'_, Self::PrimaryKey, Self, ModelRow> {
         CharybdisQuery::new(
             Self::FIND_BY_PRIMARY_KEY_QUERY,
             QueryValue::Owned(self.primary_key_values()),
         )
     }
 
-    fn maybe_find_by_primary_key(&self) -> CharybdisQuery<Self::PrimaryKey, Self, OptionalModelRow> {
+    fn maybe_find_by_primary_key(&self) -> CharybdisQuery<'_, Self::PrimaryKey, Self, OptionalModelRow> {
         CharybdisQuery::new(
             Self::FIND_BY_PRIMARY_KEY_QUERY,
             QueryValue::Owned(self.primary_key_values()),
         )
     }
 
-    fn find_by_partition_key(&self) -> CharybdisQuery<Self::PartitionKey, Self, ModelStream> {
+    fn find_by_partition_key(&self) -> CharybdisQuery<'_, Self::PartitionKey, Self, ModelStream> {
         CharybdisQuery::new(
             Self::FIND_BY_PARTITION_KEY_QUERY,
             QueryValue::Owned(self.partition_key_values()),

@@ -26,7 +26,7 @@ impl MigrationBuilder {
         Self { args: Args::default() }
     }
 
-    pub async fn build(mut self, session: &Session) -> Migration {
+    pub async fn build(mut self, session: &'_ Session) -> Migration<'_> {
         if self.args.keyspace.is_empty() {
             // try to get the keyspace from the session
             self.args.keyspace = session

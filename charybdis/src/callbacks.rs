@@ -77,7 +77,7 @@ pub struct UpdateAction<M: Callbacks>(M);
 pub struct DeleteAction<M: Callbacks>(M);
 
 pub trait CallbackAction<M: Callbacks> {
-    fn query_value<Val: SerializeRow>(model: &M) -> QueryValue<Val, M>;
+    fn query_value<Val: SerializeRow>(model: &M) -> QueryValue<'_, Val, M>;
 
     async fn before_execute(model: &mut M, session: &CachingSession, extension: &M::Extension) -> Result<(), M::Error>;
 
@@ -85,7 +85,7 @@ pub trait CallbackAction<M: Callbacks> {
 }
 
 impl<M: Callbacks> CallbackAction<M> for InsertAction<M> {
-    fn query_value<Val: SerializeRow>(model: &M) -> QueryValue<Val, M> {
+    fn query_value<Val: SerializeRow>(model: &'_ M) -> QueryValue<'_, Val, M> {
         QueryValue::Model(model)
     }
 
@@ -99,7 +99,7 @@ impl<M: Callbacks> CallbackAction<M> for InsertAction<M> {
 }
 
 impl<M: Callbacks> CallbackAction<M> for UpdateAction<M> {
-    fn query_value<Val: SerializeRow>(model: &M) -> QueryValue<Val, M> {
+    fn query_value<Val: SerializeRow>(model: &'_ M) -> QueryValue<'_, Val, M> {
         QueryValue::Model(model)
     }
 
@@ -113,7 +113,7 @@ impl<M: Callbacks> CallbackAction<M> for UpdateAction<M> {
 }
 
 impl<M: Callbacks> CallbackAction<M> for DeleteAction<M> {
-    fn query_value<Val: SerializeRow>(model: &M) -> QueryValue<Val, M> {
+    fn query_value<Val: SerializeRow>(model: &'_ M) -> QueryValue<'_, Val, M> {
         QueryValue::PrimaryKey(model.primary_key_values())
     }
 

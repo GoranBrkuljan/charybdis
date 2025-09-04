@@ -3,11 +3,11 @@ use crate::model::Model;
 use crate::query::{CharybdisCbQuery, CharybdisQuery, ModelMutation, QueryValue};
 
 pub trait Insert: Model {
-    fn insert(&self) -> CharybdisQuery<Self, Self, ModelMutation> {
+    fn insert(&self) -> CharybdisQuery<'_, Self, Self, ModelMutation> {
         CharybdisQuery::new(Self::INSERT_QUERY, QueryValue::Model(self))
     }
 
-    fn insert_if_not_exists(&self) -> CharybdisQuery<Self, Self, ModelMutation> {
+    fn insert_if_not_exists(&self) -> CharybdisQuery<'_, Self, Self, ModelMutation> {
         CharybdisQuery::new(Self::INSERT_IF_NOT_EXIST_QUERY, QueryValue::Model(self))
     }
 }
