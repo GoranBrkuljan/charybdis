@@ -475,7 +475,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "charybdis"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "bigdecimal",
  "charybdis-migrate",
@@ -493,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "charybdis-migrate"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "charybdis_parser",
  "clap",
@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "charybdis_macros"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "charybdis",
  "charybdis_parser",
@@ -533,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "charybdis_parser"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "colored",
  "darling",
@@ -1891,9 +1891,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scylla"
-version = "1.3.1"
+version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b42cf9feea170a110c5644c013a4dc790c24c60dc802f43df2ca69acae5112a4"
+checksum = "3321054d79dc75f9f3ca449111983ddc3f59aff4561cddb860af884504b4fbc9"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -1918,9 +1918,9 @@ dependencies = [
 
 [[package]]
 name = "scylla-cql"
-version = "1.3.1"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5139a271deeb8b3b8118c28d19bb3519421ec4a131e3a39533503c526d415dc2"
+checksum = "aa54ff27320ff09e24c9edf2acef2fa4a2a9b60bfb5832454d1a1768f6c036b7"
 dependencies = [
  "bigdecimal",
  "byteorder",
@@ -1943,9 +1943,9 @@ dependencies = [
 
 [[package]]
 name = "scylla-macros"
-version = "1.3.1"
+version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "162aed3aa5b6985d121d9e7e4137efebd49645dee204962b2e9ab85176349119"
+checksum = "16c9e9660119726312cd6c7bd3e286ffc80fb06a9b6d0e214a16df00600829e9"
 dependencies = [
  "darling",
  "proc-macro2",
