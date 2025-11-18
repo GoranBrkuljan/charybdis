@@ -6,8 +6,6 @@ use charybdis_parser::traits::CharybdisMacroArgs;
 
 use crate::traits::fields::{FieldsFindFirstFns, FieldsFindFn, FieldsQuery};
 
-const MAX_FIND_BY_FIELDS: usize = 3;
-
 /// for up to 3 primary keys, generate find_by_primary_key functions e.g.
 /// ```rust
 /// use scylla::client::caching_session::CachingSession;
@@ -71,10 +69,6 @@ pub(crate) fn find_by_primary_keys_functions(
     let mut generated = quote! {};
 
     for i in 0..primary_key_stack.len() {
-        if i == MAX_FIND_BY_FIELDS {
-            break;
-        }
-
         let current_fields = primary_key_stack.iter().take(i + 1).cloned().collect::<Vec<&Field>>();
 
         // we need complete partition key to query

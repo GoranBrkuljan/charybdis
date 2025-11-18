@@ -9,6 +9,7 @@ use crate::traits::tuple::Tuple;
 
 pub(crate) trait FieldsFindFnNames {
     fn find_by_fn_name(&self) -> String;
+    fn find_by_fn_name_paged(&self) -> String;
     fn find_first_by_fn_name(&self) -> String;
     fn maybe_find_first_by_fn_name(&self) -> String;
 }
@@ -16,6 +17,10 @@ pub(crate) trait FieldsFindFnNames {
 impl FieldsFindFnNames for Field<'_> {
     fn find_by_fn_name(&self) -> String {
         format!("find_by_{}", self.name)
+    }
+
+    fn find_by_fn_name_paged(&self) -> String {
+        format!("find_by_{}_paged", self.name)
     }
 
     fn find_first_by_fn_name(&self) -> String {
@@ -32,6 +37,10 @@ impl FieldsFindFnNames for Vec<&Field<'_>> {
         format!("find_by_{}", self.names().join("_and_"))
     }
 
+    fn find_by_fn_name_paged(&self) -> String {
+        format!("find_by_{}_paged", self.names().join("_and_"))
+    }
+
     fn find_first_by_fn_name(&self) -> String {
         format!("find_first_by_{}", self.names().join("_and_"))
     }
@@ -44,6 +53,7 @@ impl FieldsFindFnNames for Vec<&Field<'_>> {
 pub(crate) trait FieldsFindFn: FieldsFindFnNames + FieldsToArguments {
     fn find_fn(&self, struct_name: &syn::Ident, query_str: &String) -> TokenStream {
         let find_by_fn_name = self.find_by_fn_name().to_ident();
+        let find_by_fn_name_paged = self.find_by_fn_name_paged().to_ident();
         let arguments = self.to_fn_args();
         let types_tp = arguments.types_tp();
         let values_tp = arguments.values_tp();
@@ -53,6 +63,12 @@ pub(crate) trait FieldsFindFn: FieldsFindFnNames + FieldsToArguments {
                 #(#arguments),*
             ) -> charybdis::query::CharybdisQuery<'a, #types_tp, Self, charybdis::query::ModelStream> {
                 <#struct_name as charybdis::operations::Find>::find(#query_str, #values_tp)
+            }
+
+          pub fn #find_by_fn_name_paged<'a>(
+                #(#arguments),*
+            ) -> charybdis::query::CharybdisQuery<'a, #types_tp, Self, charybdis::query::ModelPaged> {
+                <#struct_name as charybdis::operations::Find>::find_paged_model(#query_str, #values_tp)
             }
         }
     }
