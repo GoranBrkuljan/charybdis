@@ -163,3 +163,77 @@ async fn model_paged() {
         .await
         .expect("Failed to delete posts");
 }
+
+#[tokio::test]
+async fn model_multi_field_paged() {
+    let db_session = db_session().await;
+    let category_id = uuid::Uuid::new_v4();
+    let author_id = uuid::Uuid::new_v4();
+    let repeated_order_idx = 42;
+
+    let posts_to_insert = (0..5)
+        .map(|i| Post {
+            category_id,
+            order_idx: repeated_order_idx,
+            title: format!("Paged Post {i}"),
+            content: format!("Paged content {i}"),
+            author_id,
+        })
+        .collect::<Vec<Post>>();
+
+    Post::batch()
+        .chunked_insert(&db_session, &posts_to_insert, 100)
+        .await
+        .expect("Failed to insert paged posts");
+
+    let (first_page_iter, paging_state_response) = Post::find_by_category_id_and_order_idx_paged(category_id, repeated_order_idx)
+        .page_size(2)
+        .execute(&db_session)
+        .await
+        .expect("Failed to fetch first page of posts");
+
+    let first_page = first_page_iter
+        .collect::<Result<Vec<Post>, CharybdisError>>()
+        .expect("Failed to collect first paged posts");
+
+    assert_eq!(first_page.len(), 2);
+    assert!(first_page.iter().all(|post| post.order_idx == repeated_order_idx));
+    assert!(
+        matches!(paging_state_response, PagingStateResponse::HasMorePages { .. }),
+        "Expected paged query to have additional pages"
+    );
+
+    let mut collected_posts = first_page.clone();
+
+    if let PagingStateResponse::HasMorePages { state } = paging_state_response {
+        let (next_page_iter, next_paging_state_response) =
+            Post::find_by_category_id_and_order_idx_paged(category_id, repeated_order_idx)
+                .page_size(10)
+                .paging_state(state)
+                .execute(&db_session)
+                .await
+                .expect("Failed to fetch second page of posts");
+
+        let next_page = next_page_iter
+            .collect::<Result<Vec<Post>, CharybdisError>>()
+            .expect("Failed to collect second paged posts");
+
+        assert_eq!(next_page.len(), 3);
+        assert!(next_page.iter().all(|post| post.order_idx == repeated_order_idx));
+        assert!(
+            matches!(next_paging_state_response, PagingStateResponse::NoMorePages),
+            "Expected paged query to finish after the second call"
+        );
+
+        collected_posts.extend(next_page);
+    } else {
+        panic!("Expected additional pages for multi-field paged query");
+    }
+
+    assert_eq!(collected_posts.len(), posts_to_insert.len());
+
+    Post::delete_batch()
+        .chunked_delete(&db_session, &posts_to_insert, 100)
+        .await
+        .expect("Failed to delete paged posts");
+}
