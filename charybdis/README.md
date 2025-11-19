@@ -312,6 +312,7 @@ in `charybdis::operations` module.
   use charybdis::errors::CharybdisError;
   use charybdis::macros::charybdis_model;
   use charybdis::stream::CharybdisModelStream;
+  use charybdis::scylla::PagingStateResponse;
   use charybdis::types::{Date, Text, Uuid};
 
   #[charybdis_model(
@@ -343,6 +344,23 @@ in `charybdis::operations` module.
          let post: Option<Post> = Post::maybe_find_first_by_date(date).execute(db_session).await?;
          let post: Option<Post> = Post::maybe_find_first_by_date_and_category_id(date, category_id).execute(db_session).await?;
          let post: Option<Post> = Post::maybe_find_first_by_date_and_category_id_and_title(date, category_id, title.clone()).execute(db_session).await?;
+
+         // paged finders over partition key + clustering keys
+         let (paged_posts_iter, paging_state) = Post::find_by_date_and_category_id_paged(date, category_id)
+             .page_size(10)
+             .execute(db_session)
+             .await?;
+         let paged_posts = paged_posts_iter.collect::<Result<Vec<Post>, CharybdisError>>()?;
+
+         if let PagingStateResponse::HasMorePages { state } = paging_state {
+             let (next_page_iter, next_state) = Post::find_by_date_and_category_id_paged(date, category_id)
+                 .paging_state(state)
+                 .page_size(10)
+                 .execute(db_session)
+                 .await?;
+             let _next_posts = next_page_iter.collect::<Result<Vec<Post>, CharybdisError>>()?;
+             assert!(matches!(next_state, PagingStateResponse::NoMorePages));
+         }
 
          // find by local secondary index
          let posts: CharybdisModelStream<Post> = Post::find_by_date_and_title(date, title.clone()).execute(db_session).await?;

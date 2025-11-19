@@ -20,6 +20,13 @@ where
         CharybdisQuery::new(query, QueryValue::Owned(values)).paging_state(paging_state)
     }
 
+    fn find_paged_model<Val: SerializeRow>(
+        query: &'static str,
+        values: Val,
+    ) -> CharybdisQuery<'static, Val, Self, ModelPaged> {
+        CharybdisQuery::new(query, QueryValue::Owned(values))
+    }
+
     fn find_first<'a, Val: SerializeRow>(query: &'static str, values: Val) -> CharybdisQuery<'a, Val, Self, ModelRow> {
         CharybdisQuery::new(query, QueryValue::Owned(values))
     }
