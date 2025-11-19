@@ -186,11 +186,12 @@ async fn model_multi_field_paged() {
         .await
         .expect("Failed to insert paged posts");
 
-    let (first_page_iter, paging_state_response) = Post::find_by_category_id_and_order_idx_paged(category_id, repeated_order_idx)
-        .page_size(2)
-        .execute(&db_session)
-        .await
-        .expect("Failed to fetch first page of posts");
+    let (first_page_iter, paging_state_response) =
+        Post::find_by_category_id_and_order_idx_paged(category_id, repeated_order_idx)
+            .page_size(2)
+            .execute(&db_session)
+            .await
+            .expect("Failed to fetch first page of posts");
 
     let first_page = first_page_iter
         .collect::<Result<Vec<Post>, CharybdisError>>()
