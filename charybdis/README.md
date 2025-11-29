@@ -169,6 +169,9 @@ Resulting auto-generated migration query will be:
     - Create new columns
     - Drop columns
     - Change field types (drop and recreate column `--drop-and-replace` flag)
+        - ⚠️ This operation drops and recreates the column, permanently deleting any existing data in it. If the field
+          is nested inside one or more frozen collections, ensure that all nested collections are also declared as
+          `Frozen<>` to satisfy ScyllaDB’s requirements. `Frozen<Map<Uuid, Frozen<List<Uuid>>>>`
     - Create secondary indexes
     - Drop secondary indexes
     - Create UDTs
