@@ -391,3 +391,266 @@ impl<'a> CharybdisFields<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quote::ToTokens;
+
+    const USERS: &str = "table_name = users, partition_keys = [id], clustering_keys = []";
+
+    /// Builds the fields of `input` the way the model macros do and hands them to `check`.
+    fn with_fields(args: &str, input: &str, check: impl FnOnce(&CharybdisFields)) {
+        let args: CharybdisMacroArgs = syn::parse_str(args).expect("valid macro arguments");
+        let input: DeriveInput = syn::parse_str(input).expect("valid item");
+        let mut fields = CharybdisFields::from_input(&input, &args);
+
+        check(fields.populate(&args));
+    }
+
+    fn names(fields: &[&Field]) -> Vec<String> {
+        fields.iter().map(|field| field.name.clone()).collect()
+    }
+
+    fn field<'a>(fields: &'a CharybdisFields, name: &str) -> &'a Field<'a> {
+        fields
+            .all_fields
+            .iter()
+            .find(|field| field.name == name)
+            .unwrap_or_else(|| panic!("no field named {}", name))
+    }
+
+    #[test]
+    fn keys_follow_the_order_of_the_macro_arguments() {
+        with_fields(
+            "table_name = events, partition_keys = [tenant_id, bucket], clustering_keys = [created_at, id]",
+            // declared in a different order than the key
+            "struct Event { id: Uuid, name: Text, created_at: Timestamp, bucket: Int, tenant_id: Uuid }",
+            |fields| {
+                assert_eq!(names(&fields.partition_key_fields), ["tenant_id", "bucket"]);
+                assert_eq!(names(&fields.clustering_key_fields), ["created_at", "id"]);
+                assert_eq!(
+                    names(&fields.primary_key_fields),
+                    ["tenant_id", "bucket", "created_at", "id"]
+                );
+                // every other list keeps the order of the struct
+                assert_eq!(
+                    names(&fields.db_fields),
+                    ["id", "name", "created_at", "bucket", "tenant_id"]
+                );
+                assert_eq!(names(&fields.non_primary_key_db_fields()), ["name"]);
+            },
+        );
+    }
+
+    #[test]
+    fn index_fields_are_collected() {
+        with_fields(
+            "table_name = users, partition_keys = [id], clustering_keys = [created_at], \
+             global_secondary_indexes = [email], local_secondary_indexes = [status]",
+            "struct User { id: Uuid, created_at: Timestamp, email: Text, status: Text }",
+            |fields| {
+                assert_eq!(names(&fields.global_secondary_index_fields), ["email"]);
+                assert_eq!(names(&fields.local_secondary_index_fields), ["status"]);
+            },
+        );
+    }
+
+    #[test]
+    fn static_columns_are_marked() {
+        with_fields(
+            "table_name = users, partition_keys = [id], clustering_keys = [created_at], static_columns = [tenant]",
+            "struct User { id: Uuid, created_at: Timestamp, tenant: Text, name: Text }",
+            |fields| {
+                assert!(field(fields, "tenant").is_static_column);
+                assert!(!field(fields, "name").is_static_column);
+            },
+        );
+    }
+
+    #[test]
+    fn ignored_fields_are_not_database_fields() {
+        with_fields(
+            USERS,
+            "struct User { id: Uuid, name: Text, #[charybdis(ignore)] cache: Option<Session> }",
+            |fields| {
+                assert_eq!(names(&fields.db_fields), ["id", "name"]);
+                assert_eq!(names(&fields.non_db_fields()), ["cache"]);
+                assert!(field(fields, "cache").ignore);
+                assert!(field(fields, "cache").outer_type == CqlType::Ignored);
+            },
+        );
+    }
+
+    #[test]
+    fn column_type_overrides_the_type_of_the_field() {
+        with_fields(
+            USERS,
+            r#"struct User { id: Uuid, #[charybdis(column_type = "Text")] settings: Settings, other: Settings }"#,
+            |fields| {
+                assert!(field(fields, "settings").outer_type == CqlType::Text);
+                assert_eq!(field(fields, "settings").column_type_override.as_deref(), Some("Text"));
+
+                // without the attribute a type that is not a CQL type is not recognised
+                assert!(field(fields, "other").outer_type == CqlType::Unknown);
+                assert_eq!(field(fields, "other").column_type_override, None);
+            },
+        );
+    }
+
+    #[test]
+    fn option_does_not_hide_the_type() {
+        with_fields(
+            USERS,
+            "struct User { id: Uuid, bio: Option<Text>, tags: Option<Set<Text>>, likes: Option<Counter> }",
+            |fields| {
+                assert!(field(fields, "bio").outer_type == CqlType::Text);
+                assert!(field(fields, "tags").is_set());
+                assert!(field(fields, "likes").is_counter());
+            },
+        );
+    }
+
+    #[test]
+    fn the_last_path_segment_names_the_type() {
+        with_fields(
+            USERS,
+            "struct User { id: charybdis::types::Uuid, name: charybdis::types::Text }",
+            |fields| {
+                assert!(field(fields, "id").outer_type == CqlType::Uuid);
+                assert!(field(fields, "name").outer_type == CqlType::Text);
+            },
+        );
+    }
+
+    #[test]
+    fn collections_are_recognised_unless_frozen() {
+        with_fields(
+            USERS,
+            "struct User { id: Uuid, list: List<Int>, set: Set<Int>, map: Map<Text, Int>, \
+             frozen: Frozen<List<Int>>, pair: Frozen<Tuple<Int, Text>>, likes: Counter }",
+            |fields| {
+                assert!(field(fields, "list").is_list() && field(fields, "list").is_collection());
+                assert!(field(fields, "set").is_set() && field(fields, "set").is_collection());
+                assert!(field(fields, "map").is_map() && field(fields, "map").is_collection());
+
+                // a frozen collection can only be replaced as a whole, so it gets no push/pull helpers
+                assert!(field(fields, "frozen").is_frozen());
+                assert!(!field(fields, "frozen").is_collection());
+                assert!(field(fields, "pair").is_frozen());
+                assert!(!field(fields, "pair").is_collection());
+
+                assert!(field(fields, "likes").is_counter());
+                assert!(!field(fields, "likes").is_collection());
+                assert!(!field(fields, "id").is_frozen());
+            },
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Tuple field pair must be frozen")]
+    fn tuple_has_to_be_frozen() {
+        with_fields(USERS, "struct User { id: Uuid, pair: Tuple<Int, Text> }", |_| {});
+    }
+
+    #[test]
+    #[should_panic(expected = "Field id cannot be both partition and clustering key")]
+    fn field_cannot_be_partition_and_clustering_key() {
+        with_fields(
+            "table_name = users, partition_keys = [id], clustering_keys = [id]",
+            "struct User { id: Uuid }",
+            |_| {},
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Field id cannot be both static column and partition or clustering key")]
+    fn key_cannot_be_a_static_column() {
+        with_fields(
+            "table_name = users, partition_keys = [id], clustering_keys = [], static_columns = [id]",
+            "struct User { id: Uuid }",
+            |_| {},
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Partition key tenant_id not found in struct fields")]
+    fn partition_key_has_to_be_a_field() {
+        with_fields(
+            "table_name = users, partition_keys = [tenant_id], clustering_keys = []",
+            "struct User { id: Uuid }",
+            |_| {},
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Clustering key created_at not found in struct fields")]
+    fn clustering_key_has_to_be_a_field() {
+        with_fields(
+            "table_name = users, partition_keys = [id], clustering_keys = [created_at]",
+            "struct User { id: Uuid }",
+            |_| {},
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Static column tenant not found in struct fields")]
+    fn static_column_has_to_be_a_field() {
+        with_fields(
+            "table_name = users, partition_keys = [id], clustering_keys = [], static_columns = [tenant]",
+            "struct User { id: Uuid }",
+            |_| {},
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "#[charybdis_model] works only on structs!")]
+    fn enums_are_rejected() {
+        with_fields(USERS, "enum User { Admin, Guest }", |_| {});
+    }
+
+    #[test]
+    #[should_panic(expected = "#[charybdis_model] works only for structs with named fields!")]
+    fn tuple_structs_are_rejected() {
+        with_fields(USERS, "struct User(Uuid);", |_| {});
+    }
+
+    #[test]
+    fn charybdis_attributes_are_translated_for_the_driver_and_removed() {
+        let mut input: DeriveInput = syn::parse_str(
+            r#"
+                struct User {
+                    id: Uuid,
+                    #[charybdis(ignore)]
+                    #[serde(skip)]
+                    cache: Option<Session>,
+                    #[charybdis(column_type = "Text")]
+                    settings: Settings,
+                }
+            "#,
+        )
+        .expect("valid struct");
+
+        CharybdisFields::proxy_charybdis_attrs_to_scylla(&mut input);
+        CharybdisFields::strip_charybdis_attributes(&mut input);
+
+        // an ignored field is skipped by the driver; attributes of other crates are left alone
+        let expected: DeriveInput = syn::parse_str(
+            r#"
+                struct User {
+                    id: Uuid,
+                    #[serde(skip)]
+                    #[scylla(skip)]
+                    cache: Option<Session>,
+                    settings: Settings,
+                }
+            "#,
+        )
+        .expect("valid struct");
+
+        assert_eq!(
+            input.to_token_stream().to_string(),
+            expected.to_token_stream().to_string()
+        );
+    }
+}

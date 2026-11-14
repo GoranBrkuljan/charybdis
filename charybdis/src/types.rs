@@ -516,3 +516,191 @@ impl SerializeValue for Timeuuid {
         Ok(proof)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use std::str::FromStr;
+
+    const NODE_ID: [u8; 6] = [1, 2, 3, 4, 5, 6];
+    const UUID: &str = "8e14e760-7fa8-11eb-bc66-000000000001";
+
+    fn timeuuid_at(unix_seconds: u64, node_id: &[u8; 6]) -> Timeuuid {
+        Timeuuid::new_v1(uuid::Timestamp::from_unix(uuid::NoContext, unix_seconds, 0), node_id)
+    }
+
+    fn hash_of(timeuuid: &Timeuuid) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        timeuuid.hash(&mut hasher);
+
+        hasher.finish()
+    }
+
+    #[test]
+    fn timeuuid_sorts_by_time_and_not_by_bytes() {
+        // the first bytes of a time based uuid are the low bits of its timestamp, which wrap around
+        // several times over this range
+        let chronological = (0..20)
+            .map(|i| timeuuid_at(1_700_000_000 + i * 100, &NODE_ID))
+            .collect::<Vec<Timeuuid>>();
+
+        let mut sorted = chronological.clone();
+        sorted.reverse();
+        sorted.sort();
+
+        assert_eq!(sorted, chronological);
+
+        // the same values sorted as plain uuids end up in a different order
+        let uuids = chronological.iter().map(|timeuuid| Uuid::from(*timeuuid));
+        let mut sorted_uuids = uuids.clone().collect::<Vec<Uuid>>();
+        sorted_uuids.sort();
+
+        assert_ne!(sorted_uuids, uuids.collect::<Vec<Uuid>>());
+    }
+
+    #[test]
+    fn timeuuid_compares_like_the_driver() {
+        // the same moments on different nodes, among them node ids with the high bit set: the database
+        // compares those bytes as signed
+        let node_ids = [
+            [0, 0, 0, 0, 0, 1],
+            [0x7f, 0, 0, 0, 0, 0],
+            [0x80, 0, 0, 0, 0, 0],
+            [0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
+        ];
+        let timeuuids = [1_600_000_000, 1_700_000_000, 1_700_000_100]
+            .into_iter()
+            .flat_map(|unix_seconds| node_ids.iter().map(move |node_id| timeuuid_at(unix_seconds, node_id)))
+            .collect::<Vec<Timeuuid>>();
+
+        for a in &timeuuids {
+            for b in &timeuuids {
+                let driver_a = CqlTimeuuid::from(Uuid::from(*a));
+                let driver_b = CqlTimeuuid::from(Uuid::from(*b));
+
+                assert_eq!(a.cmp(b), driver_a.cmp(&driver_b), "{} compared with {}", a, b);
+                assert_eq!(a == b, driver_a == driver_b, "{} compared with {}", a, b);
+            }
+        }
+    }
+
+    #[test]
+    fn equal_timeuuids_have_equal_hashes() {
+        let timeuuid = timeuuid_at(1_700_000_000, &NODE_ID);
+        let same = Timeuuid::from(Uuid::from(timeuuid));
+
+        assert_eq!(timeuuid, same);
+        assert_eq!(hash_of(&timeuuid), hash_of(&same));
+        assert_ne!(timeuuid, timeuuid_at(1_700_000_001, &NODE_ID));
+    }
+
+    #[test]
+    fn timeuuid_converts_to_and_from_uuid() {
+        let uuid = Uuid::from_str(UUID).expect("valid uuid");
+        let timeuuid = Timeuuid::from(uuid);
+
+        assert_eq!(Uuid::from(timeuuid), uuid);
+        assert_eq!(timeuuid.as_ref(), &uuid);
+        assert_eq!(timeuuid.as_bytes(), uuid.as_bytes());
+        assert_eq!(Timeuuid::from_bytes(*uuid.as_bytes()), timeuuid);
+        assert_eq!(Timeuuid::from(CqlTimeuuid::from(uuid)), timeuuid);
+    }
+
+    #[test]
+    fn timeuuid_is_parsed_and_printed_as_a_uuid() {
+        let timeuuid = Timeuuid::from_str(UUID).expect("valid uuid");
+
+        assert_eq!(timeuuid.to_string(), UUID);
+        assert!(Timeuuid::from_str("not a uuid").is_err());
+    }
+
+    // the JSON written by `to_json` for models with these fields
+    #[test]
+    fn json_representations() {
+        let timeuuid = Timeuuid::from_str(UUID).expect("valid uuid");
+        let timeuuid_json = format!("\"{}\"", UUID);
+
+        assert_eq!(serde_json::to_string(&timeuuid).expect("serializable"), timeuuid_json);
+        assert_eq!(
+            serde_json::from_str::<Timeuuid>(&timeuuid_json).expect("deserializable"),
+            timeuuid
+        );
+
+        let duration = Duration::new(1, 2, 3);
+        let duration_json = r#"{"months":1,"days":2,"nanoseconds":3}"#;
+
+        assert_eq!(serde_json::to_string(&duration).expect("serializable"), duration_json);
+        assert_eq!(
+            serde_json::from_str::<Duration>(duration_json).expect("deserializable"),
+            duration
+        );
+
+        assert_eq!(serde_json::to_string(&Counter(42)).expect("serializable"), "42");
+        assert_eq!(
+            serde_json::from_str::<Counter>("42").expect("deserializable"),
+            Counter(42)
+        );
+    }
+
+    #[test]
+    fn varint_is_written_to_json_as_a_string_like_decimal() {
+        let varint = Varint::from_str("-123456789012345678901234567890").expect("valid integer");
+        let varint_json = "\"-123456789012345678901234567890\"";
+
+        assert_eq!(serde_json::to_string(&varint).expect("serializable"), varint_json);
+        assert_eq!(
+            serde_json::from_str::<Varint>(varint_json).expect("deserializable"),
+            varint
+        );
+
+        let decimal = Decimal::from_str("-12.50").expect("valid decimal");
+
+        assert_eq!(serde_json::to_string(&decimal).expect("serializable"), "\"-12.50\"");
+    }
+
+    #[test]
+    fn varint_is_read_from_json_strings_and_whole_numbers() {
+        let parse = serde_json::from_str::<Varint>;
+
+        assert_eq!(parse("\"-42\"").expect("a string of digits"), Varint::from(-42));
+        assert_eq!(parse("-42").expect("a negative number"), Varint::from(-42));
+        assert_eq!(
+            parse("18446744073709551615").expect("a number above i64::MAX"),
+            Varint::from(u64::MAX)
+        );
+        assert_eq!(serde_json::from_str::<Option<Varint>>("null").expect("null"), None);
+
+        assert!(parse("1.5").is_err());
+        assert!(parse("\"1.5\"").is_err());
+        assert!(parse("\"twelve\"").is_err());
+        assert!(parse("null").is_err());
+    }
+
+    #[test]
+    fn varint_is_not_limited_to_64_bits() {
+        let varint = Varint::from_str("123456789012345678901234567890").expect("valid integer");
+
+        assert!(varint > Varint::from(i64::MAX));
+        assert!(varint > Varint::from(u128::from(u64::MAX)));
+        assert_eq!(varint.to_string(), "123456789012345678901234567890");
+        assert_eq!(Varint::default(), Varint::from(0));
+        assert!(Varint::from_str("12.5").is_err());
+    }
+
+    #[test]
+    fn varint_converts_to_and_from_a_big_integer() {
+        let big_int = num_bigint::BigInt::from(-42);
+        let varint = Varint::from(big_int.clone());
+
+        assert_eq!(varint.0, big_int);
+        assert_eq!(varint.as_ref(), &big_int);
+        assert_eq!(num_bigint::BigInt::from(varint), big_int);
+    }
+
+    #[test]
+    fn duration_defaults_to_zero() {
+        assert_eq!(Duration::default(), Duration::new(0, 0, 0));
+    }
+}
