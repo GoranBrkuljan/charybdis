@@ -1,8 +1,8 @@
 [package]
 name = "charybdis_macros"
-rust-version = "1.75.0"
+rust-version = "1.94"
 version = "1.1.0"
-edition = "2021"
+edition = "2024"
 description = "Proc macro crate for Charybdis ORM"
 repository = "https://github.com/goranbrkuljan/charybdis"
 license = "MIT"
@@ -13,14 +13,14 @@ proc-macro = true
 
 [dependencies]
 charybdis_parser = { version = "1.1.0", path = "../charybdis-parser" }
-proc-macro2 = "1.0.81"
-syn = { version = "2.0.60", features = ["full"] }
-quote = "1.0.36"
+proc-macro2 = "1.0.107"
+syn = { version = "3.0.10", features = ["full"] }
+quote = "1.0.47"
 
 [dev-dependencies]
 charybdis = { path = "../charybdis" }
-scylla = "1.4"
-chrono = "0.4.38"
+scylla = "1.10"
+chrono = "0.4.45"
 
 [lints]
 workspace = true

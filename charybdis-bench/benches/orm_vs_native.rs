@@ -4,14 +4,17 @@ use charybdis::operations::{Delete, Insert, Update};
 use charybdis::types::{Boolean, Text, Timestamp, Uuid};
 use chrono::Utc;
 use criterion::Throughput;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use scylla::client::caching_session::CachingSession;
 use scylla::client::session_builder::SessionBuilder;
 use scylla::errors::NextRowError;
 use scylla::statement::batch::{Batch, BatchStatement, BatchType};
 use tokio::runtime::Runtime;
 
-const NODES: [&str; 3] = ["127.0.0.1:9042", "127.0.0.1:9043", "127.0.0.1:9044"];
+// A single contact point: the driver discovers the other nodes from it. Since driver 1.6 every node
+// is expected to listen on the port of the contact point, so the nodes that docker-compose publishes
+// on other host ports (9043, 9044) must not be listed here.
+const NODE: &str = "127.0.0.1:9042";
 const KEYSPACE: &str = "benchmarks";
 const CACHE_SIZE: usize = 1000;
 
@@ -97,7 +100,7 @@ impl Post {
         }
 
         Post::batch()
-            .chunked_insert(&db_session, &posts, 10000)
+            .chunked_insert(db_session, &posts, 10000)
             .await
             .expect("Failed to insert posts");
     }
@@ -108,7 +111,7 @@ async fn create_keyspace() {
         r#"
             CREATE KEYSPACE IF NOT EXISTS {}
             WITH REPLICATION = {{
-                'class': 'SimpleStrategy',
+                'class': 'NetworkTopologyStrategy',
                 'replication_factor': 1
             }}
         "#,
@@ -117,7 +120,7 @@ async fn create_keyspace() {
 
     let session: CachingSession = CachingSession::from(
         SessionBuilder::new()
-            .known_nodes(NODES)
+            .known_node(NODE)
             .build()
             .await
             .expect("Unable to connect to scylla hosts"),
@@ -133,7 +136,7 @@ async fn setup_database() -> CachingSession {
     let session: CachingSession = CachingSession::from(
         SessionBuilder::new()
             .use_keyspace(KEYSPACE, false)
-            .known_nodes(NODES)
+            .known_node(NODE)
             .build()
             .await
             .expect("Unable to connect to scylla hosts"),
@@ -183,7 +186,7 @@ async fn drop_keyspace() {
 
     let session: CachingSession = CachingSession::from(
         SessionBuilder::new()
-            .known_nodes(NODES)
+            .known_node(NODE)
             .build()
             .await
             .expect("Unable to connect to scylla hosts"),

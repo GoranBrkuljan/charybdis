@@ -65,12 +65,11 @@ impl CodeSchema {
 
                 let file_content: String = parser::parse_file_as_string(entry.path());
                 let ast: syn::File = syn::parse_file(&file_content)
-                    .map_err(|e| {
+                    .inspect_err(|_e| {
                         println!(
                             "{}\n",
                             format!("Error parsing file: {}", file_content).bright_red().bold()
                         );
-                        e
                     })
                     .unwrap();
 

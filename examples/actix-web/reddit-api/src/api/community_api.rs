@@ -1,6 +1,6 @@
 use crate::errors::AppError;
 use crate::models::community::Community;
-use actix_web::{get, post, web, HttpResponse};
+use actix_web::{HttpResponse, get, post, web};
 use charybdis::operations::{Find, InsertWithCallbacks};
 use charybdis::types::Uuid;
 use scylla::client::caching_session::CachingSession;

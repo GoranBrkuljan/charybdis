@@ -4,9 +4,9 @@ use crate::model::{ModelMigration, ModelType};
 use colored::Colorize;
 use scylla::client::session::Session;
 
+use charybdis_parser::schema::SchemaObject;
 use charybdis_parser::schema::code_schema::CodeSchema;
 use charybdis_parser::schema::db_schema::DbSchema;
-use charybdis_parser::schema::SchemaObject;
 
 pub struct Migration<'a> {
     current_db_schema: DbSchema,

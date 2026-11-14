@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "3"
 members = [
     "charybdis-migrate",
     "charybdis",
@@ -11,3 +11,6 @@ members = [
 
 [workspace.lints.clippy]
 redundant_clone = "deny"
+# Our error enums wrap the driver's error types, which are larger than clippy's threshold on their own.
+# Boxing them would be a breaking change of the public API.
+result_large_err = "allow"

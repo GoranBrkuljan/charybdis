@@ -5,8 +5,8 @@ use std::path::Path;
 use syn::{Fields, GenericArgument, Item, ItemStruct, PathArguments};
 
 use crate::fields::CharybdisFields;
-use crate::schema::code_schema::ModelMacro;
 use crate::schema::SchemaObject;
+use crate::schema::code_schema::ModelMacro;
 use crate::traits::CharybdisMacroArgs;
 
 pub(crate) fn parse_file_as_string(path: &Path) -> String {
@@ -118,13 +118,12 @@ fn type_with_arguments(type_path: &syn::TypePath) -> String {
     let mut type_name = quote::quote! { #type_path }.to_string();
 
     // Check if the type is an Option<T>
-    if first_segment.ident == "Option" {
-        if let PathArguments::AngleBracketed(angle_bracketed_args) = &first_segment.arguments {
-            if let Some(GenericArgument::Type(inner_type)) = angle_bracketed_args.args.first() {
-                // Return the inner type of Option<T>
-                type_name = quote::quote! { #inner_type }.to_string();
-            }
-        }
+    if first_segment.ident == "Option"
+        && let PathArguments::AngleBracketed(angle_bracketed_args) = &first_segment.arguments
+        && let Some(GenericArgument::Type(inner_type)) = angle_bracketed_args.args.first()
+    {
+        // Return the inner type of Option<T>
+        type_name = quote::quote! { #inner_type }.to_string();
     }
 
     // strip if full path is provided

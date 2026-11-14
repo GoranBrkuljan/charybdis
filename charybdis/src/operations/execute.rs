@@ -2,8 +2,8 @@ use crate::errors::CharybdisError;
 use crate::scylla::PagingState;
 use scylla::client::caching_session::CachingSession;
 use scylla::client::pager::QueryPager;
-use scylla::response::query_result::QueryResult;
 use scylla::response::PagingStateResponse;
+use scylla::response::query_result::QueryResult;
 use scylla::serialize::row::SerializeRow;
 
 pub async fn execute_unpaged(

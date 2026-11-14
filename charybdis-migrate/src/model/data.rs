@@ -1,7 +1,7 @@
 use charybdis_parser::schema::{IndexName, SchemaObject};
 
-use crate::model::runner::INDEX_SUFFIX;
 use crate::model::ModelType;
+use crate::model::runner::INDEX_SUFFIX;
 
 type FieldName = String;
 type FieldType = String;
@@ -203,7 +203,7 @@ impl<'a> ModelData<'a> {
 
                 if code_field_type != db_field_type {
                     self.changed_field_types
-                        .push((field_name.clone(), db_field_type.clone(), code_field_type.clone()));
+                        .push((field_name.clone(), db_field_type, code_field_type));
                 }
             }
         }

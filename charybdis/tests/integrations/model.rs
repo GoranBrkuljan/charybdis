@@ -273,7 +273,7 @@ async fn find_various() -> Result<(), CharybdisError> {
     let posts: CharybdisModelStream<Post> = Post::find_by_category_id_and_title(category_id, "Post 2".to_string())
         .execute(db_session)
         .await?;
-    assert!(posts.try_collect().await?.len() > 0);
+    assert!(!posts.try_collect().await?.is_empty());
 
     let post: Post = Post::find_first_by_category_id_and_title(category_id, "Post 2".to_string())
         .execute(db_session)
@@ -289,7 +289,7 @@ async fn find_various() -> Result<(), CharybdisError> {
 
     // find by global secondary index
     let posts: CharybdisModelStream<Post> = Post::find_by_author_id(author_id).execute(db_session).await?;
-    assert!(posts.try_collect().await?.len() > 0);
+    assert!(!posts.try_collect().await?.is_empty());
 
     let post: Post = Post::find_first_by_author_id(author_id).execute(db_session).await?;
     assert_eq!(post.author_id, author_id);

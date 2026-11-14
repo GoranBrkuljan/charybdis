@@ -1,18 +1,21 @@
 [package]
 name = "charybdis_bench"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.8.2"
 charybdis = { path = "../charybdis" }
-chrono = "0.4.39"
-scylla = "1.4"
-tokio = { version = "1.42.0", features = ["rt-multi-thread"] }
+chrono = "0.4.45"
+scylla = "1.10"
+tokio = { version = "1.54.1", features = ["rt-multi-thread"] }
 
 
 [[bench]]
 name = "orm_vs_native"
 harness = false
 [dependencies]
-futures = "0.3.31"
+futures = "0.3.34"
+
+[lints]
+workspace = true

@@ -1,8 +1,8 @@
 [package]
 name = "charybdis-migrate"
-rust-version = "1.75.0"
+rust-version = "1.94"
 version = "1.1.0"
-edition = "2021"
+edition = "2024"
 description = "Automatic Migration Tool for Charybdis ORM"
 repository = "https://github.com/goranbrkuljan/charybdis"
 license = "MIT"
@@ -10,14 +10,14 @@ categories = ["database"]
 
 [dependencies]
 charybdis_parser = { version = "1.1.0", path = "../charybdis-parser" }
-scylla = { version = "1.4", features = ["openssl-010"] }
-tokio = { version = "1.38.0", features = ["full"] }
-colored = "3.0.0"
-strip-ansi-escapes = "0.2.0"
-clap = { version = "4.5.9", features = ["derive", "string"] }
-regex = "1.10.5"
-openssl = "0.10.70"
-serde_json = "1.0.100"
+scylla = { version = "1.10", features = ["openssl-010"] }
+tokio = { version = "1.54.1", features = ["full"] }
+colored = "3.1.1"
+strip-ansi-escapes = "0.2.1"
+clap = { version = "4.6.7", features = ["derive", "string"] }
+regex = "1.13.1"
+openssl = "0.10.82"
+serde_json = "1.0.154"
 
 [lib]
 name = "migrate"

@@ -26,7 +26,7 @@ between model definitions and database.
 ### Usage
 
 ```bash
-migrate --hosts <host> --keyspace <your_keyspace> --drop-and-replace (optional)
+migrate --host <host> --keyspace <your_keyspace> --drop-and-replace (optional)
 ```
 
 ## Automatic migration

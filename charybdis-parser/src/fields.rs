@@ -75,17 +75,17 @@ impl<'a> Field<'a> {
             // Handle the outer type being an Option
             if let Some(last_segment) = type_path.path.segments.last() {
                 if last_segment.ident == "Option" {
-                    if let PathArguments::AngleBracketed(args) = &last_segment.arguments {
-                        if let Some(GenericArgument::Type(Type::Path(inner_type_path))) = args.args.first() {
-                            let inner = inner_type_path.path.segments.last().expect("No inner type found");
+                    if let PathArguments::AngleBracketed(args) = &last_segment.arguments
+                        && let Some(GenericArgument::Type(Type::Path(inner_type_path))) = args.args.first()
+                    {
+                        let inner = inner_type_path.path.segments.last().expect("No inner type found");
 
-                            return inner
-                                .ident
-                                .to_string()
-                                .parse::<CqlType>()
-                                .ok()
-                                .unwrap_or(CqlType::Unknown);
-                        }
+                        return inner
+                            .ident
+                            .to_string()
+                            .parse::<CqlType>()
+                            .ok()
+                            .unwrap_or(CqlType::Unknown);
                     }
                 } else {
                     return last_segment
@@ -368,25 +368,25 @@ impl<'a> CharybdisFields<'a> {
 
     /// Map charybdis(ignore) to scylla(skip)
     pub fn proxy_charybdis_attrs_to_scylla(input: &mut DeriveInput) {
-        if let Data::Struct(data_struct) = &mut input.data {
-            if let Fields::Named(fields_named) = &mut data_struct.fields {
-                for field in &mut fields_named.named {
-                    if let Some(ignore) = &FieldAttributes::from_attributes(&field.attrs).unwrap().ignore {
-                        if *ignore {
-                            field.attrs.push(syn::parse_quote!(#[scylla(skip)]));
-                        }
-                    }
+        if let Data::Struct(data_struct) = &mut input.data
+            && let Fields::Named(fields_named) = &mut data_struct.fields
+        {
+            for field in &mut fields_named.named {
+                if let Some(ignore) = &FieldAttributes::from_attributes(&field.attrs).unwrap().ignore
+                    && *ignore
+                {
+                    field.attrs.push(syn::parse_quote!(#[scylla(skip)]));
                 }
             }
         }
     }
 
     pub fn strip_charybdis_attributes(input: &mut DeriveInput) {
-        if let Data::Struct(data_struct) = &mut input.data {
-            if let Fields::Named(fields_named) = &mut data_struct.fields {
-                for field in &mut fields_named.named {
-                    field.attrs.retain(|attr| !attr.path().is_ident("charybdis"));
-                }
+        if let Data::Struct(data_struct) = &mut input.data
+            && let Fields::Named(fields_named) = &mut data_struct.fields
+        {
+            for field in &mut fields_named.named {
+                field.attrs.retain(|attr| !attr.path().is_ident("charybdis"));
             }
         }
     }

@@ -4,7 +4,7 @@ pub mod tests {
     use crate::db_session::db_session;
     use actix_http::Request;
     use actix_web::dev::{Service, ServiceResponse};
-    use actix_web::{test, web, App, Error};
+    use actix_web::{App, Error, test, web};
     use std::sync::Arc;
 
     pub async fn init_app() -> impl Service<Request, Response = ServiceResponse, Error = Error> {

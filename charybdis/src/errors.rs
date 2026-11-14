@@ -2,8 +2,7 @@ use std::error::Error;
 use std::fmt;
 
 use colored::Colorize;
-use scylla::_macro_internal::TypeCheckError;
-use scylla::deserialize::DeserializationError;
+use scylla::deserialize::{DeserializationError, TypeCheckError};
 use scylla::errors::{
     ExecutionError, FirstRowError, IntoRowsResultError, MaybeFirstRowError, NextRowError, PagerExecutionError,
     RowsError, SingleRowError,

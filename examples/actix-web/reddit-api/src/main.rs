@@ -1,5 +1,5 @@
 use actix_web::middleware::Logger;
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer, web};
 use std::sync::Arc;
 
 mod api;

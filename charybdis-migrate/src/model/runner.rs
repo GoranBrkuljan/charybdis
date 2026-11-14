@@ -314,17 +314,16 @@ impl<'a> ModelRunner<'a> {
     }
 
     pub(crate) async fn run_table_options_change_migration(&self) {
-        if self.data.migration_object_type == ModelType::Table
-            || self.data.migration_object_type == ModelType::MaterializedView
+        if (self.data.migration_object_type == ModelType::Table
+            || self.data.migration_object_type == ModelType::MaterializedView)
+            && let Some(alter_table_options) = self.extract_alter_table_options()
         {
-            if let Some(alter_table_options) = self.extract_alter_table_options() {
-                let cql = format!(
-                    "\n ALTER TABLE {} WITH {}",
-                    self.data.migration_object_name, alter_table_options
-                );
+            let cql = format!(
+                "\n ALTER TABLE {} WITH {}",
+                self.data.migration_object_name, alter_table_options
+            );
 
-                self.execute(&cql, self.args.verbose).await;
-            }
+            self.execute(&cql, self.args.verbose).await;
         }
     }
 

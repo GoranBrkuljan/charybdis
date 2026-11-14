@@ -1,6 +1,6 @@
 use crate::common::db_session;
 use crate::custom_fields::AddressTypeCustomField;
-use crate::model::{Post, User, SAMPLE_MODEL_COUNT};
+use crate::model::{Post, SAMPLE_MODEL_COUNT, User};
 use charybdis::batch::ModelBatch;
 use charybdis::errors::CharybdisError;
 use charybdis::operations::{Delete, Find, Insert, Update};
