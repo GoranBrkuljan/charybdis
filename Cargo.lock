@@ -465,6 +465,7 @@ dependencies = [
  "chrono",
  "colored",
  "futures",
+ "num-bigint 0.4.8",
  "scylla",
  "serde",
  "serde_json",

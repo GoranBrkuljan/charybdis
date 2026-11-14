@@ -30,7 +30,6 @@ pub type Timestamp = chrono::DateTime<Utc>;
 pub type TinyInt = i8;
 pub type Uuid = uuid::Uuid;
 pub type Varchar = String;
-pub type Varint = BigInt;
 // collections
 pub type Map<K, V> = HashMap<K, V>;
 pub type List<T> = Vec<T>;
@@ -162,6 +161,137 @@ impl<'frame, 'metadata> DeserializeValue<'frame, 'metadata> for Duration {
 }
 
 impl SerializeValue for Duration {
+    fn serialize<'b>(
+        &self,
+        typ: &ColumnType,
+        writer: CellWriter<'b>,
+    ) -> Result<WrittenCellProof<'b>, SerializationError> {
+        self.0.serialize(typ, writer)
+    }
+}
+
+/// An integer of any size, unlike [`BigInt`], which is the 64-bit CQL `bigint`.
+///
+/// It is written to JSON as a string, the way [`Decimal`] is, because a JSON number cannot be relied
+/// on to hold a value of this size. A string or a whole number is accepted when reading.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Varint(pub num_bigint::BigInt);
+
+impl std::str::FromStr for Varint {
+    type Err = num_bigint::ParseBigIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse().map(Self)
+    }
+}
+
+impl std::fmt::Display for Varint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AsRef<num_bigint::BigInt> for Varint {
+    fn as_ref(&self) -> &num_bigint::BigInt {
+        &self.0
+    }
+}
+
+impl From<num_bigint::BigInt> for Varint {
+    fn from(value: num_bigint::BigInt) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Varint> for num_bigint::BigInt {
+    fn from(value: Varint) -> Self {
+        value.0
+    }
+}
+
+macro_rules! impl_varint_from_integer {
+    ($($integer:ty),*) => {
+        $(
+            impl From<$integer> for Varint {
+                fn from(value: $integer) -> Self {
+                    Self(num_bigint::BigInt::from(value))
+                }
+            }
+        )*
+    };
+}
+
+impl_varint_from_integer!(i8, i16, i32, i64, i128, isize, u8, u16, u32, u64, u128, usize);
+
+impl Serialize for Varint {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.collect_str(&self.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Varint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct VarintVisitor;
+
+        impl serde::de::Visitor<'_> for VarintVisitor {
+            type Value = Varint;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(formatter, "a whole number or a string of digits")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Varint, E>
+            where
+                E: serde::de::Error,
+            {
+                value
+                    .parse()
+                    .map_err(|error| E::custom(format!("{}: {:?}", error, value)))
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Varint, E> {
+                Ok(Varint::from(value))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Varint, E> {
+                Ok(Varint::from(value))
+            }
+
+            fn visit_i128<E>(self, value: i128) -> Result<Varint, E> {
+                Ok(Varint::from(value))
+            }
+
+            fn visit_u128<E>(self, value: u128) -> Result<Varint, E> {
+                Ok(Varint::from(value))
+            }
+        }
+
+        deserializer.deserialize_any(VarintVisitor)
+    }
+}
+
+impl<'frame, 'metadata> DeserializeValue<'frame, 'metadata> for Varint {
+    fn type_check(typ: &ColumnType) -> Result<(), TypeCheckError> {
+        <num_bigint::BigInt as DeserializeValue<'frame, 'metadata>>::type_check(typ)
+    }
+
+    fn deserialize(
+        typ: &'metadata ColumnType<'metadata>,
+        v: Option<FrameSlice<'frame>>,
+    ) -> Result<Self, DeserializationError> {
+        let big_int = <num_bigint::BigInt as DeserializeValue<'frame, 'metadata>>::deserialize(typ, v)?;
+
+        Ok(Varint(big_int))
+    }
+}
+
+impl SerializeValue for Varint {
     fn serialize<'b>(
         &self,
         typ: &ColumnType,
