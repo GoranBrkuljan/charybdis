@@ -11,13 +11,12 @@ impl TypeWithoutOptions for Type {
 
         if let Type::Path(type_path) = self {
             let first_segment = &type_path.path.segments[0];
-            if first_segment.ident == "Option" {
-                if let PathArguments::AngleBracketed(angle_bracketed_args) = &first_segment.arguments {
-                    if let Some(GenericArgument::Type(inner_type)) = angle_bracketed_args.args.first() {
-                        // Return the inner type of Option<T>
-                        type_name = quote::quote! { #inner_type };
-                    }
-                }
+            if first_segment.ident == "Option"
+                && let PathArguments::AngleBracketed(angle_bracketed_args) = &first_segment.arguments
+                && let Some(GenericArgument::Type(inner_type)) = angle_bracketed_args.args.first()
+            {
+                // Return the inner type of Option<T>
+                type_name = quote::quote! { #inner_type };
             }
         }
 

@@ -43,9 +43,7 @@ impl MigrationBuilder {
             .map(|json| serde_json::from_str(json).unwrap())
             .unwrap_or_else(|| CodeSchema::new(&self.args.current_dir));
 
-        let migration = Migration::new(current_db_schema, current_code_schema, session, self.args);
-
-        migration
+        Migration::new(current_db_schema, current_code_schema, session, self.args)
     }
 
     pub fn keyspace(mut self, keyspace: String) -> Self {

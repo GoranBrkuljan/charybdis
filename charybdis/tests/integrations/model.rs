@@ -1,9 +1,10 @@
-use crate::common::db_session;
+use crate::common::{db_session, eventually};
 use crate::custom_fields::{AddressTypeCustomField, UserExtraDataCustomField};
 
 use charybdis::batch::ModelBatch;
 use charybdis::errors::CharybdisError;
 use charybdis::model::{BaseModel, Model};
+use charybdis::operations::{Delete, Insert};
 use charybdis::stream::CharybdisModelStream;
 use charybdis::types::{Boolean, Int, Text, Uuid};
 use charybdis_macros::{charybdis_model, charybdis_udt_model, charybdis_view_model};
@@ -46,7 +47,7 @@ pub struct User {
 partial_user!(UpdateUsernameUser, id, username);
 
 impl User {
-    pub async fn populate_sample_users() {
+    pub async fn populate_sample_users() -> Vec<User> {
         let db_session = db_session().await;
         let users = (0..SAMPLE_MODEL_COUNT)
             .map(|i| {
@@ -63,6 +64,8 @@ impl User {
             .chunked_insert(&db_session, &users, 100)
             .await
             .expect("Failed to insert users");
+
+        users
     }
 
     pub fn homer(id: Uuid) -> Self {
@@ -140,6 +143,32 @@ pub struct UserByEmail {
     pub id: Uuid,
     pub email: Text,
     pub username: Text,
+}
+
+#[tokio::test]
+async fn user_by_email_find() -> Result<(), CharybdisError> {
+    let db_session = &db_session().await;
+    let mut user = User::homer(Uuid::new_v4());
+    // unique, so that the users of other tests are not in the same partition of the view
+    user.email = format!("{}@simpson.com", user.id);
+
+    user.insert().execute(db_session).await?;
+
+    let user_by_email = eventually(|| async {
+        UserByEmail::maybe_find_first_by_email(user.email.clone())
+            .execute(db_session)
+            .await
+            .expect("Failed to find user by email")
+    })
+    .await;
+
+    assert_eq!(user_by_email.id, user.id);
+    assert_eq!(user_by_email.email, user.email);
+    assert_eq!(user_by_email.username, user.username);
+
+    user.delete().execute(db_session).await?;
+
+    Ok(())
 }
 
 #[charybdis_model(
@@ -273,7 +302,7 @@ async fn find_various() -> Result<(), CharybdisError> {
     let posts: CharybdisModelStream<Post> = Post::find_by_category_id_and_title(category_id, "Post 2".to_string())
         .execute(db_session)
         .await?;
-    assert!(posts.try_collect().await?.len() > 0);
+    assert!(!posts.try_collect().await?.is_empty());
 
     let post: Post = Post::find_first_by_category_id_and_title(category_id, "Post 2".to_string())
         .execute(db_session)
@@ -289,7 +318,7 @@ async fn find_various() -> Result<(), CharybdisError> {
 
     // find by global secondary index
     let posts: CharybdisModelStream<Post> = Post::find_by_author_id(author_id).execute(db_session).await?;
-    assert!(posts.try_collect().await?.len() > 0);
+    assert!(!posts.try_collect().await?.is_empty());
 
     let post: Post = Post::find_first_by_author_id(author_id).execute(db_session).await?;
     assert_eq!(post.author_id, author_id);

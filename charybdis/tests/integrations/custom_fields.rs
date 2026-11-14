@@ -1,11 +1,11 @@
-use charybdis::scylla::serialize::writers::CellWriter;
 use charybdis::scylla::SerializeValue;
+use charybdis::scylla::serialize::writers::CellWriter;
 use charybdis::types::Text;
 use scylla::deserialize::value::DeserializeValue;
 use scylla::deserialize::{DeserializationError, FrameSlice, TypeCheckError};
 use scylla::frame::response::result::ColumnType;
-use scylla::serialize::writers::WrittenCellProof;
 use scylla::serialize::SerializationError;
+use scylla::serialize::writers::WrittenCellProof;
 
 #[derive(Debug, Default, Clone, PartialEq, strum::FromRepr)]
 #[repr(i8)]
@@ -95,7 +95,7 @@ impl SerializeValue for UserExtraDataCustomField {
         typ: &ColumnType,
         writer: CellWriter<'b>,
     ) -> Result<WrittenCellProof<'b>, SerializationError> {
-        let disc = serde_json::to_string(&self).map_err(|_e| SerializationError::new(_e))?;
+        let disc = serde_json::to_string(&self).map_err(SerializationError::new)?;
 
         let v = <Text as SerializeValue>::serialize(&disc, typ, writer)?;
         Ok(v)

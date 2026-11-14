@@ -188,3 +188,134 @@ impl From<TokenStream> for CharybdisMacroArgs {
         my_struct
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(args: &str) -> CharybdisMacroArgs {
+        syn::parse_str(args).expect("valid macro arguments")
+    }
+
+    fn strings(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| value.to_string()).collect()
+    }
+
+    /// Token streams print with spaces between tokens; the spacing is not significant.
+    fn compact(tokens: &TokenStream) -> String {
+        tokens.to_string().replace(' ', "")
+    }
+
+    #[test]
+    fn parses_table_arguments() {
+        let args = parse(
+            r#"
+                table_name = users,
+                partition_keys = [tenant_id, id],
+                clustering_keys = [created_at],
+                static_columns = [tenant_name],
+                global_secondary_indexes = [email],
+                local_secondary_indexes = [status, kind],
+                table_options = "gc_grace_seconds = 86400",
+                exclude_partial_model = true,
+            "#,
+        );
+
+        assert_eq!(args.table_name(), "users");
+        assert_eq!(args.partition_keys(), &strings(&["tenant_id", "id"]));
+        assert_eq!(args.clustering_keys(), &strings(&["created_at"]));
+        assert_eq!(args.static_columns(), &strings(&["tenant_name"]));
+        assert_eq!(args.global_secondary_indexes(), &strings(&["email"]));
+        assert_eq!(args.local_secondary_indexes(), &strings(&["status", "kind"]));
+        assert_eq!(args.table_options.as_deref(), Some("gc_grace_seconds = 86400"));
+        assert_eq!(args.exclude_partial_model, Some(true));
+    }
+
+    #[test]
+    fn primary_key_is_the_partition_key_followed_by_the_clustering_key() {
+        let args = parse("table_name = users, partition_keys = [tenant_id, id], clustering_keys = [created_at, kind]");
+        let primary_key = args.primary_key().into_iter().cloned().collect::<Vec<String>>();
+
+        assert_eq!(primary_key, strings(&["tenant_id", "id", "created_at", "kind"]));
+    }
+
+    #[test]
+    fn optional_arguments_default_to_nothing() {
+        let args = parse("table_name = users, partition_keys = [id], clustering_keys = []");
+
+        assert!(args.clustering_keys().is_empty());
+        assert!(args.static_columns().is_empty());
+        assert!(args.global_secondary_indexes().is_empty());
+        assert!(args.local_secondary_indexes().is_empty());
+        assert_eq!(args.table_options, None);
+        assert_eq!(args.exclude_partial_model, None);
+        assert_eq!(args.base_table, None);
+        assert_eq!(args.type_name, None);
+    }
+
+    #[test]
+    fn parses_materialized_view_arguments() {
+        let args = parse("table_name=users_by_email, base_table=users, partition_keys=[email], clustering_keys=[id]");
+
+        assert_eq!(args.table_name(), "users_by_email");
+        assert_eq!(args.base_table.as_deref(), Some("users"));
+        assert_eq!(args.partition_keys(), &strings(&["email"]));
+        assert_eq!(args.clustering_keys(), &strings(&["id"]));
+    }
+
+    #[test]
+    fn parses_udt_arguments() {
+        let args = parse("type_name = address");
+
+        assert_eq!(args.type_name.as_deref(), Some("address"));
+        assert_eq!(args.table_name, None);
+    }
+
+    #[test]
+    fn table_options_can_be_a_raw_string() {
+        let args = parse(
+            r##"
+                table_name = users,
+                partition_keys = [id],
+                clustering_keys = [created_at],
+                table_options = r#"
+                    CLUSTERING ORDER BY (created_at DESC)
+                "#
+            "##,
+        );
+
+        assert_eq!(
+            args.table_options.as_deref().map(str::trim),
+            Some("CLUSTERING ORDER BY (created_at DESC)")
+        );
+    }
+
+    #[test]
+    fn unknown_argument_is_an_error() {
+        assert!(syn::parse_str::<CharybdisMacroArgs>("tabel_name = users, partition_keys = [id]").is_err());
+    }
+
+    // these are passed from `partial_<model>!` to the macro that builds the partial model
+    #[test]
+    fn parses_partial_model_arguments() {
+        let args = parse(
+            r#"
+                fields_names = [id, username],
+                field_types_hash = "id => Uuid ; username => Option < Text > ;",
+                field_attributes_hash = "id => ; username => # [serde (rename = \"name\")] ;"
+            "#,
+        );
+
+        assert_eq!(args.fields_names, Some(strings(&["id", "username"])));
+
+        let types = args.field_types_hash.expect("field types");
+        assert_eq!(types.len(), 2);
+        assert_eq!(compact(&types["id"]), "Uuid");
+        assert_eq!(compact(&types["username"]), "Option<Text>");
+
+        let attributes = args.field_attributes_hash.expect("field attributes");
+        assert_eq!(attributes.len(), 2);
+        assert_eq!(compact(&attributes["id"]), "");
+        assert_eq!(compact(&attributes["username"]), "#[serde(rename=\"name\")]");
+    }
+}

@@ -13,7 +13,7 @@ use scylla::policies::retry::RetryPolicy;
 use scylla::response::query_result::QueryResult;
 use scylla::response::{PagingState, PagingStateResponse};
 use scylla::serialize::row::{RowSerializationContext, SerializeRow};
-use scylla::serialize::{writers::RowWriter, SerializationError};
+use scylla::serialize::{SerializationError, writers::RowWriter};
 use scylla::statement::Statement;
 use std::sync::Arc;
 use std::time::Duration;

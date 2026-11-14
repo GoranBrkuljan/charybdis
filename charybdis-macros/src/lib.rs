@@ -3,8 +3,8 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 
 use quote::quote;
-use syn::parse_macro_input;
 use syn::DeriveInput;
+use syn::parse_macro_input;
 
 use charybdis_parser::fields::CharybdisFields;
 use charybdis_parser::traits::CharybdisMacroArgs;
@@ -237,13 +237,13 @@ pub fn charybdis_udt_model(_: TokenStream, input: TokenStream) -> TokenStream {
     CharybdisFields::proxy_charybdis_attrs_to_scylla(&mut input);
     CharybdisFields::strip_charybdis_attributes(&mut input);
 
-    let gen = quote! {
+    let expanded = quote! {
         #[derive(charybdis::macros::scylla::SerializeValue)]
         #[derive(charybdis::macros::scylla::DeserializeValue)]
         #input
     };
 
-    gen.into()
+    expanded.into()
 }
 
 #[proc_macro_attribute]

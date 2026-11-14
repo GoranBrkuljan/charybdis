@@ -51,7 +51,9 @@ impl Callbacks for User {
 }
 
 // use partial user to avoid rendering password
-partial_user!(ShowUser, id, username, first_name, last_name, bio, address, created_at, updated_at);
+partial_user!(
+    ShowUser, id, username, first_name, last_name, bio, address, created_at, updated_at
+);
 
 #[cfg(test)]
 mod tests {

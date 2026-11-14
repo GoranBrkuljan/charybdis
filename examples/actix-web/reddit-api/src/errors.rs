@@ -38,7 +38,7 @@ impl ResponseError for AppError {
         match self {
             AppError::CharybdisError(e) => match e {
                 CharybdisError::NotFoundError(_e) => {
-                    warn!("{}", e.to_string());
+                    warn!("{}", e);
 
                     HttpResponse::NotFound().json(json!({
                         "status": 404,
@@ -48,7 +48,7 @@ impl ResponseError for AppError {
                 _ => AppError::InternalServerError(format!("CharybdisError: {}", e)).error_response(),
             },
             _ => {
-                error!("InternalServerError: {}", self.to_string());
+                error!("InternalServerError: {}", self);
 
                 HttpResponse::InternalServerError().json(json!({
                     "status": 500,

@@ -1,7 +1,7 @@
 use crate::errors::DbSchemaParserError;
-use scylla::_macro_internal::{ColumnType, DeserializeValue};
-use scylla::cluster::metadata::CollectionType;
+use scylla::deserialize::value::DeserializeValue;
 use scylla::deserialize::{DeserializationError, FrameSlice, TypeCheckError};
+use scylla::frame::response::result::{CollectionType, ColumnType};
 use scylla::value::CqlValue;
 use serde::{Deserialize, Serialize};
 
@@ -27,10 +27,12 @@ pub struct SecondaryIndex {
 // and {'target': 'node_id'} for a global secondary index
 impl<'frame, 'metadata> DeserializeValue<'frame, 'metadata> for SecondaryIndex {
     fn type_check(typ: &ColumnType) -> Result<(), TypeCheckError> {
-        if let ColumnType::Collection { frozen: _frozen, typ } = typ {
-            if let CollectionType::Map(_, _) = typ {
-                return Ok(());
-            }
+        if let ColumnType::Collection {
+            typ: CollectionType::Map(_, _),
+            ..
+        } = typ
+        {
+            return Ok(());
         }
 
         Err(TypeCheckError::new(DbSchemaParserError::TypeError(

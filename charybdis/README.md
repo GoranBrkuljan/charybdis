@@ -75,8 +75,8 @@ version of scylla should match the one used by the charybdis crate.
 
 ```toml
 [dependencies]
-scylla = "1.4"
-charybdis = "1.1"
+scylla = "1.10"
+charybdis = "1.2"
 ```
 
 ### Define Tables
@@ -201,7 +201,7 @@ Resulting auto-generated migration query will be:
     ```bash
     cargo install charybdis-migrate
 
-    migrate --hosts <host> --keyspace <your_keyspace> --drop-and-replace (optional)
+    migrate --host <host> --keyspace <your_keyspace> --drop-and-replace (optional)
     ```
     * ⚠️ Always run migrations from desired directories ('src' or 'test'), to avoid scanning
       'target' or other large directories.

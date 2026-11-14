@@ -16,13 +16,10 @@ impl FieldsQuery for Vec<&Field<'_>> {
     }
 
     fn insert_bind_markers(&self) -> String {
-        let str_vec = self
-            .iter()
+        self.iter()
             .map(|field| format!(":{}", field.name))
             .collect::<Vec<String>>()
-            .join(", ");
-
-        str_vec
+            .join(", ")
     }
 
     fn set_bind_markers(&self) -> String {

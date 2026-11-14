@@ -1,10 +1,10 @@
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse_str, Attribute, DeriveInput};
+use quote::{ToTokens, quote};
+use syn::{Attribute, DeriveInput, parse_str};
 
 use charybdis_parser::fields::CharybdisFields;
-use charybdis_parser::traits::string::ToSnakeCase;
 use charybdis_parser::traits::CharybdisMacroArgs;
+use charybdis_parser::traits::string::ToSnakeCase;
 
 use crate::traits::fields::{FieldHashMapString, ToIdents};
 

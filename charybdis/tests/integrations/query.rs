@@ -1,6 +1,6 @@
 use crate::common::db_session;
 use crate::custom_fields::AddressTypeCustomField;
-use crate::model::{Post, User, SAMPLE_MODEL_COUNT};
+use crate::model::{Post, User};
 use charybdis::batch::ModelBatch;
 use charybdis::errors::CharybdisError;
 use charybdis::operations::{Delete, Find, Insert, Update};
@@ -8,7 +8,7 @@ use charybdis::scylla::PagingStateResponse;
 use charybdis::stream::CharybdisModelStream;
 
 #[tokio::test]
-async fn model_mutation() {
+async fn model_insert() {
     let id = uuid::Uuid::new_v4();
     let new_user = User::homer(id);
 
@@ -20,13 +20,47 @@ async fn model_mutation() {
         .await
         .expect("Failed to insert user");
 
-    let mut user = User::find_by_id(id)
+    let user = User::find_by_id(id)
         .execute(&db_session)
         .await
         .expect("Failed to find user");
 
     assert_eq!(user, new_user);
 
+    // `insert_if_not_exists` leaves a row that is already there as it is
+    let mut changed_user = new_user.clone();
+    changed_user.bio = Some("I like beer".to_string());
+
+    changed_user
+        .insert_if_not_exists()
+        .execute(&db_session)
+        .await
+        .expect("Failed to insert user if not exists");
+
+    let user = User::find_by_id(id)
+        .execute(&db_session)
+        .await
+        .expect("Failed to find user");
+
+    assert_eq!(user, new_user);
+
+    user.delete().execute(&db_session).await.expect("Failed to delete user");
+}
+
+#[tokio::test]
+async fn model_update() {
+    let id = uuid::Uuid::new_v4();
+    let new_user = User::homer(id);
+
+    let db_session = db_session().await;
+
+    new_user
+        .insert()
+        .execute(&db_session)
+        .await
+        .expect("Failed to insert user");
+
+    let mut user = new_user.clone();
     user.bio = Some("I like beer".to_string());
     user.address.as_mut().expect("homer should have address").addr_type = AddressTypeCustomField::HomeAddress;
     let tag = ("Second Key".to_string(), "Second Value".to_string());
@@ -34,19 +68,53 @@ async fn model_mutation() {
 
     user.update().execute(&db_session).await.expect("Failed to update user");
 
-    let user = User::find_by_id(id)
+    let updated_user = User::find_by_id(id)
         .execute(&db_session)
         .await
         .expect("Failed to find user");
 
-    assert_eq!(user.bio, Some("I like beer".to_string()));
+    assert_eq!(updated_user.bio, Some("I like beer".to_string()));
     assert_eq!(
-        user.address.as_ref().expect("homer should have address").addr_type,
+        updated_user
+            .address
+            .as_ref()
+            .expect("homer should have address")
+            .addr_type,
         AddressTypeCustomField::HomeAddress
     );
-    assert_eq!(user.user_extra_data.user_tags.last().cloned(), Some(tag));
+    assert_eq!(updated_user.user_extra_data.user_tags.last().cloned(), Some(tag));
+
+    // and the fields that were not changed are still there
+    assert_eq!(updated_user, user);
 
     user.delete().execute(&db_session).await.expect("Failed to delete user");
+}
+
+#[tokio::test]
+async fn model_delete() {
+    let id = uuid::Uuid::new_v4();
+    let new_user = User::homer(id);
+
+    let db_session = db_session().await;
+
+    new_user
+        .insert()
+        .execute(&db_session)
+        .await
+        .expect("Failed to insert user");
+
+    new_user
+        .delete()
+        .execute(&db_session)
+        .await
+        .expect("Failed to delete user");
+
+    let user = User::maybe_find_first_by_id(id)
+        .execute(&db_session)
+        .await
+        .expect("Failed to find user");
+
+    assert_eq!(user, None);
 }
 
 #[tokio::test]
@@ -89,7 +157,7 @@ async fn optional_model_row() {
 async fn model_stream() {
     let db_session = db_session().await;
 
-    User::populate_sample_users().await;
+    let sample_users = User::populate_sample_users().await;
 
     let users: CharybdisModelStream<User> = User::find_all()
         .execute(&db_session)
@@ -97,10 +165,17 @@ async fn model_stream() {
         .expect("Failed to find users");
     let users_vec = users.try_collect().await.expect("Failed to collect users");
 
-    assert_eq!(users_vec.len(), SAMPLE_MODEL_COUNT);
+    // other tests write to this table while this one runs, so only the users inserted here are checked
+    for sample_user in &sample_users {
+        assert!(
+            users_vec.contains(sample_user),
+            "User {} is missing from the stream",
+            sample_user.username
+        );
+    }
 
     User::delete_batch()
-        .chunked_delete(&db_session, &users_vec, 100)
+        .chunked_delete(&db_session, &sample_users, 100)
         .await
         .expect("Failed to delete users");
 }

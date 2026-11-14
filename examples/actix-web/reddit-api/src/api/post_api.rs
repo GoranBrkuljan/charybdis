@@ -1,7 +1,7 @@
 use crate::errors::AppError;
 use crate::models::materialized_views::PostsByCreator;
 use crate::models::post::{Post, UpdateArchivedPost, UpdateDescriptionPost};
-use actix_web::{get, post, put, web, HttpResponse};
+use actix_web::{HttpResponse, get, post, put, web};
 use charybdis::batch::ModelBatch;
 use charybdis::operations::{Find, InsertWithCallbacks, UpdateWithCallbacks};
 use charybdis::types::{Timestamp, Uuid};
@@ -231,7 +231,7 @@ mod tests {
             .unwrap();
 
         for post in posts {
-            assert_eq!(post.is_archived, true);
+            assert!(post.is_archived);
         }
     }
 }
