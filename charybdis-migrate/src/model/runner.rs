@@ -328,23 +328,117 @@ impl<'a> ModelRunner<'a> {
     }
 
     fn extract_alter_table_options(&self) -> Option<String> {
-        // strip clustering order and compact storage options from table options
-        // because they are not supported by ALTER TABLE
-        if let Some(table_options) = &self.data.current_code_schema.table_options {
-            let table_options = table_options.replace("WITH", "").trim().to_string();
-            let compact_storage_re = Regex::new(r"(?i)\bCOMPACT STORAGE\b\s*(AND\s*)?").unwrap();
-            let clustering_order_re = Regex::new(r"(?i)\bCLUSTERING ORDER BY\b[^)]+\)\s*(AND\s*)?").unwrap();
+        self.data
+            .current_code_schema
+            .table_options
+            .as_deref()
+            .and_then(alter_table_options)
+    }
+}
 
-            let stripped_co_string = compact_storage_re.replace_all(table_options.as_str(), "");
-            let alter_table_options = clustering_order_re.replace_all(&stripped_co_string, "").to_string();
+/// Returns the part of a model's table options that can be applied to a table that already exists.
+///
+/// The clustering order and compact storage can only be set when the table is created, so they are
+/// stripped: `ALTER TABLE` does not support them.
+fn alter_table_options(table_options: &str) -> Option<String> {
+    let table_options = table_options.replace("WITH", "").trim().to_string();
+    let compact_storage_re = Regex::new(r"(?i)\bCOMPACT STORAGE\b\s*(AND\s*)?").unwrap();
+    let clustering_order_re = Regex::new(r"(?i)\bCLUSTERING ORDER BY\b[^)]+\)\s*(AND\s*)?").unwrap();
 
-            if alter_table_options.is_empty() {
-                return None;
-            }
+    // an option that is stripped from the end leaves the `AND` in front of it behind
+    let dangling_and_re = Regex::new(r"(?i)\s*\bAND\s*$").unwrap();
 
-            Some(alter_table_options)
-        } else {
+    let stripped_co_string = compact_storage_re.replace_all(table_options.as_str(), "");
+    let stripped_options = clustering_order_re.replace_all(&stripped_co_string, "");
+    let alter_table_options = dangling_and_re.replace(&stripped_options, "").to_string();
+
+    if alter_table_options.is_empty() {
+        return None;
+    }
+
+    Some(alter_table_options)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::alter_table_options;
+
+    #[test]
+    fn options_that_can_only_be_set_on_creation_are_not_altered() {
+        assert_eq!(alter_table_options("CLUSTERING ORDER BY (created_at DESC)"), None);
+        assert_eq!(alter_table_options("COMPACT STORAGE"), None);
+        assert_eq!(
+            alter_table_options("COMPACT STORAGE AND CLUSTERING ORDER BY (created_at DESC, id ASC)"),
             None
-        }
+        );
+        assert_eq!(
+            alter_table_options("\n    clustering order by (created_at desc)\n"),
+            None
+        );
+    }
+
+    #[test]
+    fn other_options_are_kept() {
+        let expected = Some("gc_grace_seconds = 86400 AND default_time_to_live = 60".to_string());
+
+        assert_eq!(
+            alter_table_options("gc_grace_seconds = 86400 AND default_time_to_live = 60"),
+            expected
+        );
+        assert_eq!(
+            alter_table_options("WITH gc_grace_seconds = 86400 AND default_time_to_live = 60"),
+            expected
+        );
+    }
+
+    #[test]
+    fn clustering_order_is_stripped_from_any_position() {
+        let expected = Some("gc_grace_seconds = 86400 AND default_time_to_live = 60".to_string());
+
+        assert_eq!(
+            alter_table_options(
+                "CLUSTERING ORDER BY (created_at DESC) AND gc_grace_seconds = 86400 AND default_time_to_live = 60"
+            ),
+            expected
+        );
+        assert_eq!(
+            alter_table_options(
+                "gc_grace_seconds = 86400 AND CLUSTERING ORDER BY (created_at DESC, id ASC) AND default_time_to_live = 60"
+            ),
+            expected
+        );
+        assert_eq!(
+            alter_table_options(
+                "gc_grace_seconds = 86400 AND default_time_to_live = 60 AND CLUSTERING ORDER BY (created_at DESC)"
+            ),
+            expected
+        );
+    }
+
+    #[test]
+    fn compact_storage_is_stripped_from_any_position() {
+        let expected = Some("gc_grace_seconds = 86400".to_string());
+
+        assert_eq!(
+            alter_table_options("COMPACT STORAGE AND gc_grace_seconds = 86400"),
+            expected
+        );
+        assert_eq!(
+            alter_table_options("gc_grace_seconds = 86400 AND COMPACT STORAGE"),
+            expected
+        );
+    }
+
+    #[test]
+    fn options_written_over_several_lines() {
+        let table_options = r#"
+            CLUSTERING ORDER BY (created_at DESC)
+            AND gc_grace_seconds = 86400
+        "#;
+
+        assert_eq!(
+            alter_table_options(table_options),
+            Some("gc_grace_seconds = 86400".to_string())
+        );
     }
 }
