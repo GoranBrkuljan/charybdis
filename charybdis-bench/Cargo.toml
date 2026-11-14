@@ -2,6 +2,7 @@
 name = "charybdis_bench"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [dev-dependencies]
 criterion = "0.8.2"
