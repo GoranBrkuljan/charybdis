@@ -297,7 +297,7 @@ impl SerializeValue for Varint {
         typ: &ColumnType,
         writer: CellWriter<'b>,
     ) -> Result<WrittenCellProof<'b>, SerializationError> {
-        self.0.serialize(typ, writer)
+        SerializeValue::serialize(&self.0, typ, writer)
     }
 }
 
